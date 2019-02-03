@@ -28,6 +28,12 @@ The goals / steps of this project are the following:
 [image8]: ./output_images/color_thresholding_hls.png "Color Thresholding HLS"
 [image9]: ./output_images/color_thresholding_hsv.png "Color Thresholding HSV"
 [image10]: ./output_images/combined_color_gradient_thresholding.png "Combined Color and Gradient Thresholding"
+[image11]: ./output_images/warp_and_threshold.png "Warp and Threshold Image"
+[image12]: ./output_images/histogram.png "Histogram Peaks"
+[image13]: ./output_images/fit_polynomial.png "Fit Polynomial"
+[image14]: ./output_images/curvature.png "Curvature"
+[image15]: ./output_images/lane_center.png "Lane Center"
+[image16]: ./output_images/unwarp.png "Unwarp"
 [video1]: ./project_video.mp4 "Video"
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
@@ -137,19 +143,37 @@ I used a combination of color and gradient thresholds to generate a binary image
 
 #### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
 
-Then I did some other stuff and fit my lane lines with a 2nd order polynomial kinda like this:
+In the `Sliding Window` section, I first applied the combined threshold obtained above to a warped image to check if the output was proper (`warp_and_threshold()` method). As seen in the image below, the left and right lane lines can clearly be seen against the black background
+![warp_and_threshold][image11]
 
-![alt text][image5]
+Then, to determine which pixels in the resulting image were part of the left or right lane lines, I plotted a histogram of the bottom half of the image using the `find_histogram()` method. The left and right peaks in the histogram indicate the bottom portions of the left and right lanes respectively (`find_histogram_peaks()` method)
+![histogram][image12]
+
+I used the sliding window approach outlined in the lecture to fit the positions of these pixels with a polynomial, by first identifying the X and Y positions of all non-zero pixels in the image, followed by iterating through the windows and centering each window around the mean position if the number of pixels within that window was greater than the minimum number of pixels hyper-parameter. The hyperparameters were set as follows:
+
+|  Parameter      | Values | 
+|:-------------:|:-------------:| 
+|  Number of sliding windows     | 9       | 
+|  Margin of sliding window (pixels)     | 100      |
+|  Minimum number of pixels required to recenter window      | 50      |
+
+After determining all the relevant lane pixels, 2 second order polynomials were fit to these pixels in the left and right halves. The figure below depicts these 2 polynomials with the left and right halves coloured in red and blue respectively, and each window is outlined in green.
+![fit_polynomial][image13]
 
 #### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
 
-I did this in lines # through # in my code in `my_other_file.py`
+In the `Measuring Curvature` section, I used the left and right polynomials obtained above in pixel space to derive 2 new polynomials in world space, assuming that a 30 meter long lane is represented by 720 pixels and a 3.7 meter wide lane is represented by 700 pixels. 
+
+First, 2 lists of X coordinates for the left and right lanes are obtained from each polynomial in pixel space for each value of Y from 0 to 720. These lists are used to fit 2 new polynomials in world space, and the radii of curvature of the left and right lanes closest to the vehicle are obtained using the following formula, with `y` set to the bottom of the image:
+![curvature][image14]
+
+To calculate the lane center, I used the 2 polynomials in pixel space to determine X coordinates of the left and right lanes with `y` set to the bottom of the image. Then, I found the mid-point of these 2 X- coordinates in pixel space and subtracted the center of the image (640) from it. The result was converted into meters. 
+![lane_center][image15]
 
 #### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
 
-I implemented this step in lines # through # in my code in `yet_another_file.py` in the function `map_lane()`.  Here is an example of my result on a test image:
-
-![alt text][image6]
+In the `Unwarp` section, I used the code snippet provided in the `Tips and Tricks` section which uses the X and Y coordinates obtained from the left and right polynomials plotted earlier, to plot a filled green polygon onto a blank image. This image is then unwarped using the inverse perspective transform matrix and the result is overlaid on the original image as shown below:
+![unwarp][image16]
 
 ---
 
@@ -157,7 +181,7 @@ I implemented this step in lines # through # in my code in `yet_another_file.py`
 
 #### 1. Provide a link to your final video output.  Your pipeline should perform reasonably well on the entire project video (wobbly lines are ok but no catastrophic failures that would cause the car to drive off the road!).
 
-Here's a [link to my video result](./project_video.mp4)
+Here's a [link to my video result](https://www.youtube.com/watch?v=1BVLh1tesGM&feature=youtu.be)
 
 ---
 
@@ -166,3 +190,13 @@ Here's a [link to my video result](./project_video.mp4)
 #### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
 Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+
+The `Pipeline` section uses all the methods defined in the previous sections to process every frame of the final video to highlight lane lines. In addition, it makes use of a class called `Line` which keeps track of a previous frame's left and right lane polynomials. This helps in removing outliers by assuming that any new X coordinate determined by a polynomial at a given Y coordinate should lie within 50 pixels of the X coordinate determined by a polynomial of the previous frame at that same Y coordinate. I found that this technique helped in frames where shadows or road texture changes tended to alter the lane line markings. 
+
+There is also a `Frame Extraction for Debugging` section which helps in extracting frames of the video in which lane lines are not being highlighted properly, which was useful for debugging purposes. 
+
+The `IPyWidget` library helped me immensely in experimenting with different threshold values. However, determining suitable thresholds for gradient and colors proved to be a task with a lot of trial and error. I believe I found the threshold values by chance, and it works properly only for the above video. For other videos, I would have to find some other threshold values. 
+
+My pipeline would likely fail in regions with continuous shadows or if any lane is covered by another object such as a car. My pipeline would also fail on roads where the lane lines curve drastically, due to the logic I am relying on in the `Line` class. 
+
+To make this pipeline more robust, I will have to keep track of the polynomials detected in at least a few frames of the video, to validate a polynomial fit in a new frame. To improve the time taken by the pipeline to process the video input, I shouldn't be running the sliding window logic afresh for each and every frame, but instead rely on previous frames. I could also use the curvature values of previous frames to fine-tune the highlighted lanes.

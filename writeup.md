@@ -1,4 +1,5 @@
 
+
 ## Writeup 
 
 ---
@@ -48,9 +49,9 @@ The goals / steps of this project are the following:
 
 The code for this step is contained in the `Camera Calibration` section of the IPython notebook located in "./P2.ipynb".
 
-I start by preparing "object points", which will be the (x, y, z) coordinates of the chessboard corners in the world. Here I am assuming the chessboard is fixed on the (x, y) plane at z=0, such that the object points are the same for each calibration image.  Thus, `objp` is just a replicated array of coordinates, and `objpoints` will be appended with a copy of it every time I successfully detect all chessboard corners in a test image.  `imgpoints` will be appended with the (x, y) pixel position of each of the corners in the image plane with each successful chessboard detection. Also, only those chessboards with `9x6` inner corners were considered for calibration 
+In the `calibrate_camera()` method, I start by preparing "object points", which will be the (x, y, z) coordinates of the chessboard corners in the world. Here I am assuming the chessboard is fixed on the (x, y) plane at z=0, such that the object points are the same for each calibration image.  Thus, `objp` is just a replicated array of coordinates, and `objpoints` will be appended with a copy of it every time I successfully detect all chessboard corners in a test image.  `imgpoints` will be appended with the (x, y) pixel position of each of the corners in the image plane with each successful chessboard detection. Also, only those chessboards with `9x6` inner corners were considered for calibration 
 
-I then used the output `objpoints` and `imgpoints` to compute the camera calibration and distortion coefficients using the `cv2.calibrateCamera()` function.  I applied this distortion correction to all the images in the `./camera_cal` folder using the `cv2.undistort()` function and obtained the following result, which depicts the original image alongside the undistorted image with the chessboard corners coloured, wherever applicable. 
+I then used the output `objpoints` and `imgpoints` to compute the camera calibration and distortion coefficients using the `cv2.calibrateCamera()` function.  In the `undistort_images()` method, I applied this distortion correction to all the images in the `./camera_cal` folder using the `cv2.undistort()` function and obtained the following result, which depicts the original image alongside the undistorted image with the chessboard corners coloured, wherever applicable. 
 
 ![Undistorted][image1]
 
@@ -73,7 +74,7 @@ To determine the `src` points, I used a test image which contained straight lane
 
 ![interactive_slider_unwarp_src][image3]
 
-For the destination points, I chose a rectangle with left and right boundaries at 1/4th and 3/4th of the width, to accommodate curved lines as well (I discovered this after a few curved lines in the video weren't getting highlighted properly)
+For the destination points, I chose a rectangle with left and right boundaries at 1/4th and 3/4th of the width, to accommodate curved lines as well (I found this after a few curved lines in the video weren't getting highlighted properly)
 
 This resulted in the following source and destination points:
 
@@ -92,8 +93,9 @@ I verified that my perspective transform was working as expected by drawing the 
 
 I used a combination of color and gradient thresholds to generate a binary image, as outlined in the `Thresholding` section of the notebook, which is divided into 3 parts:
 
- 1. Gradient Thresholding
-	 Using grayscale images, I used the Sobel Operator to calculate the gradients in the X and Y directions separately to identify pixels that fell within a given threshold. Then, I found the overall magnitude and direction of the gradient in both X and Y directions to identify pixels that fell within a given threshold.
+ 1. Gradient Thresholding: 
+ 
+	 I used the Sobel Operator on grayscale images to calculate the gradients in the X and Y directions separately to identify pixels that fell within a given threshold. Then, I found the overall magnitude and direction of the gradient in both X and Y directions to identify pixels that fell within a given threshold.
 	 To identify the appropriate threshold values and kernel size, I made use of interactive sliders from the `IPyWidget` library, as shown below:
 	 
 	![interactive_slider_gradient_threshold][image5]
@@ -111,7 +113,8 @@ I used a combination of color and gradient thresholds to generate a binary image
 	![gradient_thresholding][image6]
 	Note that the `combined` image combines the Gradient in X and Y directions with the Magnitude and direction of the gradient. 
 
- 2. Color Thresholding
+ 2. Color Thresholding:
+ 
 	I experimented with images in all 3 color spaces viz., RGB, HSL and HSV. For each color space, I extracted each channel and applied thresholds to them. To identify the appropriate threshold values, I made use of interactive sliders from the `IPyWidget` library, and obtained the following values:
 
 	|  Parameter      | Threshold Values | 
@@ -131,8 +134,9 @@ I used a combination of color and gradient thresholds to generate a binary image
 	![color_thresholding_hls][image8]
 	![color_thresholding_hsv][image9]
 
- 3. Color + Gradient Thresholding
-	Finally, I combined the gradient thresholds and color thresholds obtained above by using the H and S channels from the HLS color space + R and B channels from the RGB color space + Gradients in the X and Y directions + Magnitude and Direction of the Gradient, in the following manner:
+ 3. Color + Gradient Thresholding:
+ 
+	Finally, in the `combined_color_gradient_thresholding()` method, I combined the gradient thresholds and color thresholds obtained above by using the H and S channels from the HLS color space + R and B channels from the RGB color space + Gradients in the X and Y directions + Magnitude and Direction of the Gradient, in the following manner:
 	`((h_channel == 1) & (s_channel == 1)) |
 	((r_channel == 0) & (b_channel == 1)) |
 	((mag_binary == 1) & (dir_binary == 1)) |
@@ -157,10 +161,15 @@ I used the sliding window approach outlined in the lecture to fit the positions 
 |  Margin of sliding window (pixels)     | 100      |
 |  Minimum number of pixels required to recenter window      | 50      |
 
-After determining all the relevant lane pixels, 2 second order polynomials were fit to these pixels in the left and right halves. The figure below depicts these 2 polynomials with the left and right halves coloured in red and blue respectively, and each window is outlined in green.
+After determining all the relevant lane pixels, 2 second order polynomials were fitted to these pixels in the left and right halves. The figure below depicts these 2 polynomials with the left and right halves coloured in red and blue respectively, and each window is outlined in green.
 ![fit_polynomial][image13]
 
-#### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
+#### 5. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
+
+In the `Unwarp` section, I used the code snippet provided in the `Tips and Tricks` topic which uses the X and Y coordinates obtained from the left and right polynomials plotted earlier, to plot a filled green polygon onto a blank image. This image is then unwarped using the inverse of the perspective transform matrix obtained earlier and the result is overlaid on the original image as shown below:
+![unwarp][image16]
+
+#### 6. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
 
 In the `Measuring Curvature` section, I used the left and right polynomials obtained above in pixel space to derive 2 new polynomials in world space, assuming that a 30 meter long lane is represented by 720 pixels and a 3.7 meter wide lane is represented by 700 pixels. 
 
@@ -169,11 +178,6 @@ First, 2 lists of X coordinates for the left and right lanes are obtained from e
 
 To calculate the lane center, I used the 2 polynomials in pixel space to determine X coordinates of the left and right lanes with `y` set to the bottom of the image. Then, I found the mid-point of these 2 X- coordinates in pixel space and subtracted the center of the image (640) from it. The result was converted into meters. 
 ![lane_center][image15]
-
-#### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
-
-In the `Unwarp` section, I used the code snippet provided in the `Tips and Tricks` section which uses the X and Y coordinates obtained from the left and right polynomials plotted earlier, to plot a filled green polygon onto a blank image. This image is then unwarped using the inverse perspective transform matrix and the result is overlaid on the original image as shown below:
-![unwarp][image16]
 
 ---
 
@@ -191,12 +195,12 @@ Here's a [link to my video result](https://www.youtube.com/watch?v=1BVLh1tesGM&f
 
 Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
 
-The `Pipeline` section uses all the methods defined in the previous sections to process every frame of the final video to highlight lane lines. In addition, it makes use of a class called `Line` which keeps track of a previous frame's left and right lane polynomials. This helps in removing outliers by assuming that any new X coordinate determined by a polynomial at a given Y coordinate should lie within 50 pixels of the X coordinate determined by a polynomial of the previous frame at that same Y coordinate. I found that this technique helped in frames where shadows or road texture changes tended to alter the lane line markings. 
+The `Pipeline` section uses all the methods defined in the previous sections to process every frame of the final video to highlight lane lines. In addition, it makes use of a class called `Line` which keeps track of a previous frame's left and right lane polynomials. This helps in removing outliers by assuming that any new X coordinate determined by a polynomial at a given Y coordinate should lie within 50 pixels of the X coordinate determined by a polynomial of the previous frame at that same Y coordinate. I found that this technique helped in frames where slight shadows or road texture changes tended to alter the lane line markings. 
 
 There is also a `Frame Extraction for Debugging` section which helps in extracting frames of the video in which lane lines are not being highlighted properly, which was useful for debugging purposes. 
 
 The `IPyWidget` library helped me immensely in experimenting with different threshold values. However, determining suitable thresholds for gradient and colors proved to be a task with a lot of trial and error. I believe I found the threshold values by chance, and it works properly only for the above video. For other videos, I would have to find some other threshold values. 
 
-My pipeline would likely fail in regions with continuous shadows or if any lane is covered by another object such as a car. My pipeline would also fail on roads where the lane lines curve drastically, due to the logic I am relying on in the `Line` class. 
+My pipeline would likely fail in regions with continuous shadows or if any lane is covered by another object such as a car or other lines formed by the texture of the road, as seen in the challenge video. My pipeline would also fail on roads where the lane lines curve drastically, due to the logic I am relying on in the `Line` class. 
 
-To make this pipeline more robust, I will have to keep track of the polynomials detected in at least a few frames of the video, to validate a polynomial fit in a new frame. To improve the time taken by the pipeline to process the video input, I shouldn't be running the sliding window logic afresh for each and every frame, but instead rely on previous frames. I could also use the curvature values of previous frames to fine-tune the highlighted lanes.
+To make this pipeline more robust, I will have to keep track of the polynomials detected in at least a few frames of the video, to validate a polynomial fit in a new frame. I would also have to experiment to find better gradient and color thresholds that can be applied to the challenge videos. To improve the time taken by the pipeline to process the video input, I shouldn't be running the sliding window logic afresh for each and every frame, but instead rely on previous frames. I could also use the curvature values of previous frames to fine-tune the highlighted lanes.
